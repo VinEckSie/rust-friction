@@ -1,0 +1,90 @@
+
+///////////////////////////////////////////Ownership & Borrowing: Slices vs String EASY
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_split() {
+        let s = "hello world";
+        let (pre, mid, post) = split_window(s, 6, 5).expect("should split");
+        assert_eq!(pre, "hello ");
+        assert_eq!(mid, "world");
+        assert_eq!(post, "");
+    }
+
+    #[test]
+    fn empty_window() {
+        let s = "hello world";
+        let (pre, mid, post) = split_window(s, 5, 0).expect("empty window ok");
+        assert_eq!(pre, "hello");
+        assert_eq!(mid, "");
+        assert_eq!(post, " world");
+        // Property-like: parts recombine to original and lengths add up
+        assert_eq!([pre, mid, post].concat(), s);
+        assert_eq!(pre.len() + mid.len() + post.len(), s.len());
+    }
+
+    #[test]
+    fn out_of_bounds_or_non_boundary_is_none() {
+        let s = "hello";
+        assert!(split_window(s, 6, 0).is_none());     // start > len
+        assert!(split_window(s, 4, 2).is_none());     // end > len
+        let s2 = "éé"; // each 'é' is 2 bytes in UTF-8
+        assert!(split_window(s2, 1, 1).is_none());    // not a char boundary
+    }
+
+    #[test]
+    fn utf8_boundary_ok() {
+        let s = "éà!";
+        // bytes: "é"(0..2), "à"(2..4), "!"(4..5)
+        let (pre, mid, post) = split_window(s, 2, 2).expect("valid utf8 window");
+        assert_eq!(pre, "é");
+        assert_eq!(mid, "à");
+        assert_eq!(post, "!");
+        assert_eq!([pre, mid, post].concat(), s);
+    }
+
+    #[test]
+    fn borrows_from_same_buffer_pointer_identity() {
+        // Enforce the core concept: returned slices must BORROW from the input
+        let s = String::from("abcdef");
+        let base = s.as_ptr();
+        let start = 2;
+        let len = 3;
+        let (pre, mid, post) = split_window(&s, start, len).expect("should split");
+        // Check that mid begins exactly at base + start
+        assert_eq!(mid.as_ptr(), unsafe { base.add(start) });
+        // Check pre starts at base when non-empty
+        if !pre.is_empty() {
+            assert_eq!(pre.as_ptr(), base);
+        }
+        // Check post begins at base + start + len when non-empty
+        if !post.is_empty() {
+            assert_eq!(post.as_ptr(), unsafe { base.add(start + len) });
+        }
+    }
+}
+
+// === Implement me ===
+pub fn split_window(s: &str, start: usize, len: usize) -> Option<(&str, &str, &str)> {
+    let end = start.checked_add(len)?;
+
+    if start > s.len() || start + len > s.len() || !s.is_char_boundary(start) || !s.is_char_boundary(end) {
+        None
+    } else {
+        let pre = &s[..start];
+        let mid = &s[start..start+len];
+        let post = &s[start+len..s.len()];
+
+        Some((pre, mid, post))
+    }
+}
+
+fn main() {}
+
+
+
+///////////////////////////////////////////Ownership & Borrowing: Slices vs String MEDIUM
+
